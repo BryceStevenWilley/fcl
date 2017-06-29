@@ -35,6 +35,8 @@
 #include <gtest/gtest.h>
 
 #include "fcl/narrowphase/distance.h"
+#include "fcl/narrowphase/collision_object.h"
+#include "fcl/geometry/bvh/BVH_model.h"
 #include "fcl/narrowphase/detail/traversal/collision_node.h"
 #include "fcl/narrowphase/detail/gjk_solver_libccd.h"
 #include "test_fcl_utility.h"
@@ -46,11 +48,12 @@ bool verbose = false;
 
 //==============================================================================
 template <typename S>
-void test_distance_spheresphere(GJKSolverType solver_type)
+DistanceResult<S> test_distance_general(GJKSolverType solver_type,
+        CollisionGeometry<S> &s1,
+        CollisionGeometry<S> &s2,
+        S expected_dist,
+        Vector3<S> translation)
 {
-  Sphere<S> s1{20};
-  Sphere<S> s2{10};
-
   Transform3<S> tf1{Transform3<S>::Identity()};
   Transform3<S> tf2{Transform3<S>::Identity()};
 
@@ -60,35 +63,72 @@ void test_distance_spheresphere(GJKSolverType solver_type)
   request.gjk_solver_type = solver_type;
 
   DistanceResult<S> result;
+  result.min_distance = -1;
 
-  bool res{false};
+  double res{0.0};
 
   // Expecting distance to be 10
   result.clear();
-  tf2.translation() = Vector3<S>(40, 0, 0);
+  tf2.translation() = translation;
   res = distance(&s1, tf1, &s2, tf2, request, result);
-  EXPECT_TRUE(res);
-  EXPECT_TRUE(std::abs(result.min_distance - 10) < 1e-6);
-  EXPECT_TRUE(result.nearest_points[0].isApprox(Vector3<S>(20, 0, 0)));
-  EXPECT_TRUE(result.nearest_points[1].isApprox(Vector3<S>(-10, 0, 0)));
-
-  // Expecting distance to be -5
-  result.clear();
-  tf2.translation() = Vector3<S>(25, 0, 0);
-  res = distance(&s1, tf1, &s2, tf2, request, result);
-
-  EXPECT_TRUE(res);
-  EXPECT_TRUE(std::abs(result.min_distance - (-5)) < 1.5e-1);
+  EXPECT_NE(res, 0.0);
+  EXPECT_NEAR(result.min_distance, expected_dist, 1.5e-1);
   // TODO(JS): The negative distance computation using libccd requires
   // unnecessarily high error tolerance.
+  return result;
+}
 
-  // TODO(JS): Only GST_LIBCCD can compute the pair of nearest points on the
-  // surface of the spheres.
-  if (solver_type == GST_LIBCCD)
-  {
+template <typename S>
+void test_distance_spheresphere(GJKSolverType solver_type)
+{
+    Sphere<S> s1{20};
+    Sphere<S> s2{10};
+    auto result = test_distance_general<S>(solver_type, s1, s2, 10, Vector3<S>(40, 0, 0));
     EXPECT_TRUE(result.nearest_points[0].isApprox(Vector3<S>(20, 0, 0)));
     EXPECT_TRUE(result.nearest_points[1].isApprox(Vector3<S>(-10, 0, 0)));
-  }
+    result = test_distance_general<S>(solver_type, s1, s2, -5, Vector3<S>(25, 0, 0));
+    // TODO(JS): Only GST_LIBCCD can compute the pair of nearest points on the
+    // surface of the spheres.
+    if (solver_type == GST_LIBCCD)
+    {
+      EXPECT_TRUE(result.nearest_points[0].isApprox(Vector3<S>(20, 0, 0)));
+      EXPECT_TRUE(result.nearest_points[1].isApprox(Vector3<S>(-10, 0, 0)));
+    }
+}
+
+template <typename S>
+BVHModel<OBBRSS<S>> *mesh_tetra(S length)
+{
+    // Make the first cube.
+    std::vector<Vector3<S>> vertices;
+    std::vector<Triangle> triangles;
+    vertices.push_back(Vector3<S>(static_cast<S>(0), static_cast<S>(0), static_cast<S>(0)));
+    vertices.push_back(Vector3<S>(static_cast<S>(length), static_cast<S>(0), static_cast<S>(0)));
+    vertices.push_back(Vector3<S>(static_cast<S>(0), static_cast<S>(length), static_cast<S>(0)));
+    vertices.push_back(Vector3<S>(static_cast<S>(0), static_cast<S>(0), static_cast<S>(length)));
+    triangles.push_back(Triangle(0, 1, 2));
+    triangles.push_back(Triangle(0, 2, 3));
+    triangles.push_back(Triangle(0, 3, 1));
+    triangles.push_back(Triangle(2, 1, 3));
+
+    typedef BVHModel<OBBRSS<S>> Model;
+    Model *model = new Model();
+    //std::shared_ptr<BVHModel<OBBRSS<S> > > model(new BVHModel<OBBRSS<S> >);
+    model->beginModel();
+    model->addSubModel(vertices, triangles);
+    model->endModel();
+    return model;
+}
+
+template <typename S>
+void test_distance_tetratetra(GJKSolverType solver_type)
+{
+    typedef BVHModel<OBBRSS<S>> Model;
+    Model *c1 = mesh_tetra<double>(20);
+    Model *c2 = mesh_tetra<double>(10);
+    test_distance_general<S>(solver_type, *c1, *c2, 20, Vector3<S>(40, 0, 0));
+    test_distance_general<S>(solver_type, *c1, *c2, 5, Vector3<S>(25, 0, 0));
+    test_distance_general<S>(solver_type, *c1, *c2, -5, Vector3<S>(15, 0, 0));
 }
 
 //==============================================================================
@@ -96,6 +136,12 @@ GTEST_TEST(FCL_NEGATIVE_DISTANCE, sphere_sphere)
 {
   test_distance_spheresphere<double>(GST_LIBCCD);
   test_distance_spheresphere<double>(GST_INDEP);
+}
+
+GTEST_TEST(FCL_NEGATIVEDISTANCE, cube_cube)
+{
+    test_distance_tetratetra<double>(GST_LIBCCD);
+    //test_distance_tetratetra<double>(GST_INDEP);
 }
 
 //==============================================================================
