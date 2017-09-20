@@ -97,8 +97,17 @@ void test_distance_spheresphere(GJKSolverType solver_type)
 }
 
 template <typename S>
-BVHModel<OBBRSS<S>> *mesh_tetra(S length)
+BVHModel<OBBRSS<S>> *mesh_cube(S length)
 {
+    //vertices.push_back(Vector3<S>(static_cast<S>(0), static_cast<S>(0), static_cast<S>(0)));
+    //vertices.push_back(Vector3<S>(static_cast<S>(length), static_cast<S>(0), static_cast<S>(0)));
+    //vertices.push_back(Vector3<S>(static_cast<S>(0), static_cast<S>(length), static_cast<S>(0)));
+    //vertices.push_back(Vector3<S>(static_cast<S>(0), static_cast<S>(0), static_cast<S>(length)));
+    //triangles.push_back(Triangle(0, 1, 2));
+    //triangles.push_back(Triangle(0, 2, 3));
+    //triangles.push_back(Triangle(0, 3, 1));
+    //triangles.push_back(Triangle(2, 1, 3));
+
     // Make the first cube.
     std::vector<Vector3<S>> vertices;
     std::vector<Triangle> triangles;
@@ -106,10 +115,28 @@ BVHModel<OBBRSS<S>> *mesh_tetra(S length)
     vertices.push_back(Vector3<S>(static_cast<S>(length), static_cast<S>(0), static_cast<S>(0)));
     vertices.push_back(Vector3<S>(static_cast<S>(0), static_cast<S>(length), static_cast<S>(0)));
     vertices.push_back(Vector3<S>(static_cast<S>(0), static_cast<S>(0), static_cast<S>(length)));
+    vertices.push_back(Vector3<S>(static_cast<S>(length), static_cast<S>(length), static_cast<S>(0)));
+    vertices.push_back(Vector3<S>(static_cast<S>(0), static_cast<S>(length), static_cast<S>(length)));
+    vertices.push_back(Vector3<S>(static_cast<S>(length), static_cast<S>(0), static_cast<S>(length)));
+    vertices.push_back(Vector3<S>(static_cast<S>(length), static_cast<S>(length), static_cast<S>(length)));
+    // Bottom
     triangles.push_back(Triangle(0, 1, 2));
+    triangles.push_back(Triangle(1, 4, 2));
+    // Front
     triangles.push_back(Triangle(0, 2, 3));
+    triangles.push_back(Triangle(3, 2, 5));
+    // Left
     triangles.push_back(Triangle(0, 3, 1));
-    triangles.push_back(Triangle(2, 1, 3));
+    triangles.push_back(Triangle(3, 6, 1));
+    // Top
+    triangles.push_back(Triangle(6, 3, 5));
+    triangles.push_back(Triangle(6, 5, 7));
+    // Right
+    triangles.push_back(Triangle(5, 2, 4));
+    triangles.push_back(Triangle(7, 5, 4));
+    // Back
+    triangles.push_back(Triangle(6, 7, 4));
+    triangles.push_back(Triangle(6, 4, 1));
 
     typedef BVHModel<OBBRSS<S>> Model;
     Model *model = new Model();
@@ -121,11 +148,11 @@ BVHModel<OBBRSS<S>> *mesh_tetra(S length)
 }
 
 template <typename S>
-void test_distance_tetratetra(GJKSolverType solver_type)
+void test_distance_cubecube(GJKSolverType solver_type)
 {
     typedef BVHModel<OBBRSS<S>> Model;
-    Model *c1 = mesh_tetra<double>(20);
-    Model *c2 = mesh_tetra<double>(10);
+    Model *c1 = mesh_cube<double>(20);
+    Model *c2 = mesh_cube<double>(10);
     test_distance_general<S>(solver_type, *c1, *c2, 20, Vector3<S>(40, 0, 0));
     test_distance_general<S>(solver_type, *c1, *c2, 5, Vector3<S>(25, 0, 0));
     test_distance_general<S>(solver_type, *c1, *c2, -5, Vector3<S>(15, 0, 0));
@@ -140,8 +167,8 @@ GTEST_TEST(FCL_NEGATIVE_DISTANCE, sphere_sphere)
 
 GTEST_TEST(FCL_NEGATIVEDISTANCE, cube_cube)
 {
-    test_distance_tetratetra<double>(GST_LIBCCD);
-    //test_distance_tetratetra<double>(GST_INDEP);
+    test_distance_cubecube<double>(GST_LIBCCD);
+    //test_distance_cubecube<double>(GST_INDEP);
 }
 
 //==============================================================================

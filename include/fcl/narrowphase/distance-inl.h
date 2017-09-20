@@ -144,8 +144,8 @@ typename NarrowPhaseSolver::S distance(
   // of collision checking routine. The downside of this workaround is that the
   // pair of nearest points is not guaranteed to be on the surface of the
   // objects.
-  if(res
-     && result.min_distance < static_cast<S>(0)
+  if(res <= 0
+     && result.min_distance <= static_cast<S>(0)
      && request.enable_signed_distance)
   {
     if (std::is_same<NarrowPhaseSolver, detail::GJKSolver_libccd<S>>::value
@@ -167,6 +167,7 @@ typename NarrowPhaseSolver::S distance(
     for (auto i = 0u; i < collision_result.numContacts(); ++i)
     {
       const auto& contact = collision_result.getContact(i);
+      printf("Checking contact %d with penetration depth %f\n", i, contact.penetration_depth);
       if (max_pen_depth < contact.penetration_depth)
       {
         max_pen_depth = contact.penetration_depth;
@@ -174,6 +175,7 @@ typename NarrowPhaseSolver::S distance(
       }
     }
     result.min_distance = -max_pen_depth;
+    res = -max_pen_depth;
     assert(index != static_cast<std::size_t>(-1));
 
     if (request.enable_nearest_points)
