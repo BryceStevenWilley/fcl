@@ -175,10 +175,12 @@ option(FCL_WITH_OCTOMAP "OctoMap library support" ON)
 set(FCL_HAVE_OCTOMAP 0)
 
 if(FCL_WITH_OCTOMAP)
-  find_package(octomap QUIET)
+  #find_package(octomap QUIET)
 
   # Older versions of octomap-config.cmake may not define OCTOMAP_VERSION so
   # fall back to pkg-config
+  # Newer versions of octomap-config.cmake also fail to set variables, resulting
+  # in a "octomap-NOTFOUND".
   if(NOT octomap_FOUND OR NOT OCTOMAP_VERSION)
     if(PKG_CONFIG_FOUND)
       pkg_check_modules(PC_OCTOMAP octomap)
